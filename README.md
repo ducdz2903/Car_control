@@ -4,16 +4,17 @@ Dự án điều khiển robot xe bằng ESP32 kết nối tới server qua WebS
 
 ## 📋 Mục Lục
 
-- [Yêu Cầu Hệ Thống](#yêu-cầu-hệ-thống)
-- [Chuẩn Bị Phần Cứng](#chuẩn-bị-phần-cứng)
-- [Cấu Hình Dự Án](#cấu-hình-dự-án)
-- [Triển Khai Ứng Dụng](#triển-khai-ứng-dụng)
-- [Cấu Trúc Lệnh WebSocket](#cấu-trúc-lệnh-websocket)
-- [Ghi Chú Quan Trọng](#ghi-chú-quan-trọng)
+- [Yêu Cầu Hệ Thống](#requirements)
+- [Chuẩn Bị Phần Cứng](#hardware)
+- [Cấu Hình Dự Án](#configuration)
+- [Triển Khai Ứng Dụng](#deployment)
+- [Cấu Trúc Lệnh WebSocket](#ws-commands)
+- [Ghi Chú Quan Trọng](#important-notes)
 
 ---
 
-## ⚙️ Yêu Cầu Hệ Thống
+<a id="requirements"></a>
+## ⚙️ Yêu Cầu Hệ Thống 
 
 ### Phần Mềm
 - **PlatformIO CLI** hoặc **Visual Studio Code + PlatformIO Extension**
@@ -30,6 +31,7 @@ pip install platformio
 
 ---
 
+<a id="hardware"></a>
 ## 🔧 Chuẩn Bị Phần Cứng
 
 ### Linh Kiện Cần Thiết
@@ -54,6 +56,7 @@ pip install platformio
 
 ---
 
+<a id="configuration"></a>
 ## 📝 Cấu Hình Dự Án
 
 ### Bước 1: Clone/Copy Dự Án
@@ -66,36 +69,36 @@ cd d:/temp/code/iot/Project/car_control
 **Cách A: Sử dụng `config.env.h` (Khuyến Nghị - An Toàn)**
 
 1. Copy template từ `include/config.env.h` hoặc `include/config.example.h`:
-   ```bash
-   cp include/config.env.h include/config.env.h
-   ```
+  ```bash
+  cp include/config.env.h include/config.env.h
+  ```
 
 2. Chỉnh sửa file `include/config.env.h` với thông tin thực tế:
-   ```cpp
-   // ================== WIFI ==================
-   const char* WIFI_SSID = "YOUR_NETWORK_NAME";      // Tên WiFi của bạn
-   const char* WIFI_PASS = "YOUR_WIFI_PASSWORD";    // Mật khẩu WiFi
+  ```cpp
+  // ================== WIFI ==================
+  const char* WIFI_SSID = "YOUR_NETWORK_NAME";      // Tên WiFi của bạn
+  const char* WIFI_PASS = "YOUR_WIFI_PASSWORD";    // Mật khẩu WiFi
 
-   // ================== WS SERVER ==================
-   const char* WS_HOST = "your.server.com";         // Hostname server
-   const uint16_t WS_PORT = 443;                     // Port (443=WSS/HTTPS)
-   const char* WS_PATH = "/api/ws/robot/YOUR_ROBOT_ID"; // Endpoint + robot ID
-   ```
+  // ================== WS SERVER ==================
+  const char* WS_HOST = "your.server.com";         // Hostname server
+  const uint16_t WS_PORT = 443;                     // Port (443=WSS/HTTPS)
+  const char* WS_PATH = "/api/ws/robot/YOUR_ROBOT_ID"; // Endpoint + robot ID
+  ```
 
 3. **Thay đổi include trong `src/main.cpp`**:
-   ```cpp
-   // Thay từ:
-   #include "config.h"
-   
-   // Sang:
-   #include "config.env.h"
-   ```
+  ```cpp
+  // Thay từ:
+  #include "config.h"
+  
+  // Sang:
+  #include "config.env.h"
+  ```
 
 4. Đảm bảo `include/config.env.h` ở trong `.gitignore` (đã setup sẵn):
-   ```bash
-   cat .gitignore | grep config.env.h
-   # Kết quả: include/config.env.h
-   ```
+  ```bash
+  cat .gitignore | grep config.env.h
+  # Kết quả: include/config.env.h
+  ```
 
 **Cách B: Sửa trực tiếp `include/config.h` (Nhanh nhưng Ít An Toàn)**
 
@@ -126,6 +129,7 @@ const float MS_PER_DEGREE = 8.0f;    // Thời gian (ms) để quay 1 độ
 
 ---
 
+<a id="deployment"></a>
 ## 🚀 Triển Khai Ứng Dụng
 
 ### Bước 1: Kiểm Tra Kết Nối USB
@@ -205,8 +209,8 @@ Gửi lệnh test từ server:
   "intent": "tien",
   "action_id": "test_001",
   "params": {
-    "distance": 0.5,
-    "unit": "m"
+   "distance": 0.5,
+   "unit": "m"
   }
 }
 ```
@@ -223,6 +227,7 @@ Robot sẽ in log:
 
 ---
 
+<a id="ws-commands"></a>
 ## 📡 Cấu Trúc Lệnh WebSocket
 
 ### Định Dạng Chung
@@ -232,7 +237,7 @@ Robot sẽ in log:
   "intent": "tien|lui|re_phai|re_trai|stop|set_speed",
   "action_id": "unique_id_string",
   "params": {
-    // Các tham số tùy intent
+   // Các tham số tùy intent
   }
 }
 ```
@@ -246,8 +251,8 @@ Robot sẽ in log:
   "intent": "tien",
   "action_id": "forward_01",
   "params": {
-    "distance": 1.5,
-    "unit": "m"
+   "distance": 1.5,
+   "unit": "m"
   }
 }
 ```
@@ -268,8 +273,8 @@ Robot sẽ in log:
   "intent": "lui",
   "action_id": "backward_01",
   "params": {
-    "distance": 1.0,
-    "unit": "m"
+   "distance": 1.0,
+   "unit": "m"
   }
 }
 ```
@@ -281,8 +286,8 @@ Robot sẽ in log:
   "intent": "re_phai",
   "action_id": "turn_right_01",
   "params": {
-    "angle": 90,
-    "unit": "deg"
+   "angle": 90,
+   "unit": "deg"
   }
 }
 ```
@@ -294,8 +299,8 @@ Robot sẽ in log:
   "intent": "re_trai",
   "action_id": "turn_left_01",
   "params": {
-    "angle": 90,
-    "unit": "deg"
+   "angle": 90,
+   "unit": "deg"
   }
 }
 ```
@@ -317,7 +322,7 @@ Robot sẽ in log:
   "intent": "set_speed",
   "action_id": "speed_01",
   "params": {
-    "pwm": 150
+   "pwm": 150
   }
 }
 ```
@@ -328,6 +333,7 @@ Robot sẽ in log:
 
 ---
 
+<a id="important-notes"></a>
 ## 🔍 Ghi Chú Quan Trọng
 
 ### ⚠️ Bảo Mật Credentials
@@ -360,16 +366,16 @@ const int IN4 = 18;
 Robot sử dụng **time-based positioning** (không có encoder):
 
 1. **Hiệu chỉnh MS_PER_METER:**
-   ```
-   Chạy robot đi thẳng 1m → Tính thời gian (ms) → Đặt vào MS_PER_METER
-   Ví dụ: Đi 1m mất 1200ms → MS_PER_METER = 1200.0f
-   ```
+  ```
+  Chạy robot đi thẳng 1m → Tính thời gian (ms) → Đặt vào MS_PER_METER
+  Ví dụ: Đi 1m mất 1200ms → MS_PER_METER = 1200.0f
+  ```
 
 2. **Hiệu chỉnh MS_PER_DEGREE:**
-   ```
-   Quay robot 360° → Tính thời gian (ms) → Chia 360
-   Ví dụ: Quay 360° mất 2880ms → MS_PER_DEGREE = 2880.0/360 = 8.0f
-   ```
+  ```
+  Quay robot 360° → Tính thời gian (ms) → Chia 360
+  Ví dụ: Quay 360° mất 2880ms → MS_PER_DEGREE = 2880.0/360 = 8.0f
+  ```
 
 ### 🔗 Kết Nối WebSocket
 
