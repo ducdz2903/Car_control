@@ -22,7 +22,8 @@ const int IN1 = 22;
 const int IN2 = 21;
 const int IN3 = 19;
 const int IN4 = 18;
-
+// Servo control pin
+const int SERVO_PIN = 17;
 // PWM (LEDC)
 const int PWM_CH_A = 0;
 const int PWM_CH_B = 1;
