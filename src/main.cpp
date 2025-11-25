@@ -2,24 +2,26 @@
 #include <WiFi.h>
 #include <WebSocketsClient.h>
 #include <ArduinoJson.h>
+#include <ESP32Servo.h>
 #include "config.h"
 
 WebSocketsClient ws;
+Servo liftServo;
 
 // ================== CONTROL STATE ==================
-// speedNormal: dùng cho đi thẳng / lùi
-// speedTurn  : dùng cho rẽ trái / phải
+// speedNormal: đi thẳng / lùi
+// speedTurn  : rẽ trái / phải
 int speedNormal = SPEED_NORMAL;
 int speedTurn   = SPEED_TURN;
 
 String lastCmd = "idle";
-unsigned long actionUntil = 0;          // thời điểm dừng auto (ms). 0 = không hẹn
+unsigned long actionUntil = 0;  // thời điểm dừng auto (ms). 0 = không hẹn
 
 // Lưu intent + action_id của action hiện tại (để gửi result)
 String currentIntent = "";
 String currentActionId = "";
 
-// ================== HELPERS ==================
+// ================== MOTOR HELPERS ==================
 void pwmWriteBoth(int val) {
   val = constrain(val, 0, 255);
   ledcWrite(PWM_CH_A, val);
@@ -82,7 +84,20 @@ void stopMotor() {
   Serial.println("[MOTOR] STOP");
 }
 
-// Gửi kết quả lên server sau khi HOÀN THÀNH lệnh
+// ================== SERVO HELPERS (MG90S) ==================
+void servoUp() {
+  // MG90S: quay về một nửa (180 độ)
+  liftServo.write(180);
+  Serial.println("[SERVO] UP (180 deg)");
+}
+
+void servoDown() {
+  // MG90S: quay về đầu còn lại (0 độ)
+  liftServo.write(0);
+  Serial.println("[SERVO] DOWN (0 deg)");
+}
+
+// ================== RESULT HELPERS ==================
 void sendActionResult(const String& actionId, bool success, const char* message) {
   if (actionId.length() == 0) {
     Serial.println("[WS] No action_id -> skip sendActionResult");
@@ -90,8 +105,6 @@ void sendActionResult(const String& actionId, bool success, const char* message)
   }
 
   StaticJsonDocument<192> doc;
-
-  // Payload cuối cùng bạn yêu cầu
   doc["action_id"] = actionId;
   doc["success"]   = success;
   doc["message"]   = message;
@@ -102,15 +115,15 @@ void sendActionResult(const String& actionId, bool success, const char* message)
   Serial.printf("[WS->] %s\n", out.c_str());
 }
 
-// Tạo lịch dừng sau ms, lưu intent + action_id
+// ================== SCHEDULER ==================
 void scheduleStop(unsigned long ms, const String& intent, const String& actionId) {
   if (ms == 0) {
-    // Không auto stop, coi như xử lý tức thì
+    // Không auto stop, coi như tác vụ tức thời
     actionUntil     = 0;
     currentIntent   = "";
     currentActionId = "";
     Serial.printf("[SCHED] no auto stop for intent=%s (duration=0)\n", intent.c_str());
-    // Trường hợp distance/angle = 0, có thể coi là hoàn thành luôn
+    // Trường hợp distance/angle = 0, coi như hoàn thành luôn
     sendActionResult(actionId, true, "OK");
     return;
   }
@@ -124,14 +137,14 @@ void scheduleStop(unsigned long ms, const String& intent, const String& actionId
 
 // ================== PARSE & EXECUTE INTENT ==================
 void handleIntent(const String& intent, JsonObject params, const String& actionId) {
-  // "tien" (đi thẳng), "lui", "re_phai", "re_trai", "stop", "set_speed"
+  // "tien", "lui", "re_phai", "re_trai", "stop", "set_speed"
+  // thêm "nang", "ha" điều khiển servo MG90S
   if (intent == "tien") {
     float distance = params["distance"] | 0;
     const char* unit = params["unit"] | "m";
     Serial.printf("[INTENT] tien distance=%.2f %s, action_id=%s\n",
                   distance, unit, actionId.c_str());
 
-    // Nếu distance <= 0 thì coi như xong luôn, không chạy
     if (distance <= 0) {
       stopMotor();
       sendActionResult(actionId, true, "OK");
@@ -204,7 +217,6 @@ void handleIntent(const String& intent, JsonObject params, const String& actionI
     actionUntil     = 0;
     currentIntent   = "";
     currentActionId = "";
-    // stop là lệnh tức thì → gửi OK luôn
     sendActionResult(actionId, true, "OK");
   }
   else if (intent == "set_speed") {
@@ -223,13 +235,23 @@ void handleIntent(const String& intent, JsonObject params, const String& actionI
 
     Serial.printf("[INTENT] set_speed normal=%d, turn=%d, action_id=%s\n",
                   speedNormal, speedTurn, actionId.c_str());
-    // Hoàn thành ngay
+    sendActionResult(actionId, true, "OK");
+  }
+  else if (intent == "nang") {
+    // Nâng: xoay servo MG90S hết cỡ theo một chiều
+    Serial.printf("[INTENT] nang (servo up), action_id=%s\n", actionId.c_str());
+    servoUp();
+    sendActionResult(actionId, true, "OK");
+  }
+  else if (intent == "ha") {
+    // Hạ: xoay servo MG90S hết cỡ theo chiều ngược lại
+    Serial.printf("[INTENT] ha (servo down), action_id=%s\n", actionId.c_str());
+    servoDown();
     sendActionResult(actionId, true, "OK");
   }
   else {
     Serial.printf("[INTENT] unknown: %s, action_id=%s\n",
                   intent.c_str(), actionId.c_str());
-    // Lệnh không biết → báo lỗi
     sendActionResult(actionId, false, "unknown_intent");
   }
 }
@@ -239,7 +261,7 @@ void wsEvent(WStype_t type, uint8_t * payload, size_t length) {
   switch (type) {
     case WStype_CONNECTED: {
       Serial.printf("[WS] Connected to wss://%s%s\n", WS_HOST, WS_PATH);
-      // Không gửi gì lên server ở đây để tránh format không đúng mong đợi
+      // không gửi gì thêm để tránh lệch format với server
       break;
     }
     case WStype_DISCONNECTED:
@@ -252,7 +274,7 @@ void wsEvent(WStype_t type, uint8_t * payload, size_t length) {
       String msg((char*)payload, length);
       Serial.printf("[WS<-] %s\n", msg.c_str());
 
-      // Nếu không bắt đầu bằng '{' hoặc '[' thì KHÔNG phải JSON → bỏ qua
+      // Nếu không bắt đầu bằng '{' hoặc '[' thì không phải JSON -> bỏ qua
       char c0 = (char)payload[0];
       if (c0 != '{' && c0 != '[') {
         Serial.println("[WS] Non-JSON text from server -> ignore");
@@ -263,7 +285,7 @@ void wsEvent(WStype_t type, uint8_t * payload, size_t length) {
       DeserializationError err = deserializeJson(doc, msg);
       if (err) {
         Serial.printf("[JSON] parse error on incoming: %s\n", err.c_str());
-        // KHÔNG gửi error lại, tránh vòng lặp
+        // không gửi error ngược lại để tránh vòng lặp
         return;
       }
 
@@ -296,20 +318,29 @@ void setup() {
   Serial.println();
   Serial.println("[BOOT] ESP32 Robot (WS Client)");
 
-  // Pins
+  // Motor pins
   pinMode(IN1, OUTPUT);
   pinMode(IN2, OUTPUT);
   pinMode(IN3, OUTPUT);
   pinMode(IN4, OUTPUT);
   Serial.println("[PIN] motor pins set OUTPUT");
 
-  // PWM
+  // Motor PWM (L298N)
   ledcSetup(PWM_CH_A, PWM_FREQ, PWM_BITS);
   ledcSetup(PWM_CH_B, PWM_FREQ, PWM_BITS);
   ledcAttachPin(ENA, PWM_CH_A);
   ledcAttachPin(ENB, PWM_CH_B);
   pwmWriteBoth(DUMMY_SPEED_PWM);
   Serial.printf("[PWM] %dHz, %dbit, init=%d\n", PWM_FREQ, PWM_BITS, DUMMY_SPEED_PWM);
+
+  // Servo MG90S on SERVO_PIN
+  ESP32PWM::allocateTimer(0);
+  ESP32PWM::allocateTimer(1);
+  ESP32PWM::allocateTimer(2);
+  ESP32PWM::allocateTimer(3);
+  liftServo.setPeriodHertz(50);               // 50 Hz cho servo
+  liftServo.attach(SERVO_PIN, 500, 2400);     // xung 0.5ms - 2.4ms
+  servoDown();                                // vị trí mặc định
 
   // WiFi
   WiFi.mode(WIFI_STA);
@@ -321,7 +352,7 @@ void setup() {
   }
   Serial.printf("\n[WiFi] Connected. IP=%s\n", WiFi.localIP().toString().c_str());
 
-  // WebSocket Client (WSS) — GIỮ NGUYÊN PHẦN CONNECT
+  // WebSocket Client (WSS)
   ws.beginSSL(WS_HOST, WS_PORT, WS_PATH); // wss
   ws.onEvent([](WStype_t type, uint8_t * payload, size_t length){ wsEvent(type, payload, length); });
   ws.setReconnectInterval(2000);          // tự reconnect
@@ -333,7 +364,6 @@ void setup() {
 
 void loop() {
   ws.loop();
-
   // Kiểm tra lịch dừng
   if (actionUntil != 0 && millis() >= actionUntil) {
     Serial.printf("[SCHED] action time reached for intent=%s, action_id=%s\n",
@@ -348,3 +378,4 @@ void loop() {
     currentActionId = "";
   }
 }
+
