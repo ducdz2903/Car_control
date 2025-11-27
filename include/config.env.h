@@ -25,8 +25,8 @@ const int IN4 = 18;
 // Servo control pin
 const int SERVO_PIN = 17;
 // PWM (LEDC)
-const int PWM_CH_A = 0;
-const int PWM_CH_B = 1;
+const int PWM_CH_A = 4;
+const int PWM_CH_B = 5;
 const int PWM_FREQ = 1000;   // Hz
 const int PWM_BITS = 8;      // 0..255
 
